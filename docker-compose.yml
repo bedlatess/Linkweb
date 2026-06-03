@@ -1,0 +1,42 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║  LinkWeb — Docker Compose Production Configuration               ║
+# ║                                                                  ║
+# ║  Quick start:                                                    ║
+# ║    1. cp .env.example .env                                       ║
+# ║    2. Fill in OAuth credentials + NEXTAUTH_SECRET                ║
+# ║    3. docker compose up -d --build                               ║
+# ║    4. Visit http://localhost:3010                                ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+version: "3.8"
+
+services:
+  linkweb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: linkweb
+    ports:
+      - "3010:3010"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/data/linkweb.db
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3010}
+    volumes:
+      # Persist SQLite database file
+      - linkweb-data:/app/data
+      # Persist user-uploaded assets (avatars, background images)
+      - linkweb-uploads:/app/public/uploads
+    restart: unless-stopped
+    # Security: no new privileges, read-only root filesystem (except volumes)
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+
+volumes:
+  linkweb-data:
+    driver: local
+  linkweb-uploads:
+    driver: local

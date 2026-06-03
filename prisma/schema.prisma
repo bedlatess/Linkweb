@@ -1,0 +1,135 @@
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  LinkWeb — Prisma Database Schema v2.0                       ║
+// ║  Provider: SQLite (default) · PostgreSQL (production)        ║
+// ║  Auth: NextAuth.js v5 (OAuth 2.0: GitHub, Google)            ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  NextAuth.js v5 标准模型
+// ═══════════════════════════════════════════════════════════════
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  bio           String?
+  username      String?   @unique
+  passwordHash  String?   // bcrypt hash for credentials-based auth
+  customDomain  String?   @unique // custom domain for white-label (e.g. "link.mybrand.com")
+
+  // Relations
+  accounts      Account[]
+  links         Link[]
+  themeConfig   ThemeConfig?
+  sessions      Session[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String  // "oauth" | "email" | "credentials"
+  provider          String  // "github" | "google"
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  LinkWeb 业务模型
+// ═══════════════════════════════════════════════════════════════
+
+model Link {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  url       String
+  iconName  String?  // Lucide icon identifier (e.g. "github", "twitter", "youtube")
+  isVisible Boolean  @default(true)
+  sortOrder Int      @default(0)
+  groupName String?  // Optional grouping label for visual sections
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  visitLogs VisitLog[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId, sortOrder])
+}
+
+model ThemeConfig {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  bgType      String   @default("color")   // "color" | "image" | "gradient"
+  bgValue     String   @default("#0a0a0a") // hex color / image path / gradient CSS
+  bgBlur      Int      @default(0)         // px value for backdrop-filter
+  buttonStyle String   @default("rounded") // "rounded" | "pill" | "square"
+  fontFamily  String?                      // font-family string or Google Font name
+  customCSS   String?                      // raw CSS override (escape hatch)
+
+  // ─── Tip / Donation config ───
+  tipEnabled    Boolean  @default(false)   // show tip button on public page?
+  tipTitle      String?                    // custom button text (default: "☕ 赞助我")
+  paypalEmail   String?                    // PayPal.me email
+  customTipUrl  String?                    // third-party tip link (Ko-fi, 爱发电, BuyMeACoffee)
+  cryptoAddress String?                    // crypto wallet address (ETH/BTC/SOL)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  updatedAt DateTime @updatedAt
+}
+
+model VisitLog {
+  id        String   @id @default(cuid())
+  linkId    String
+  ipHash    String   // SHA-256 hash of visitor IP (privacy-preserving)
+  userAgent String   // truncated to 256 chars
+  referer   String?  // optional, truncated
+  country   String?  // GeoIP lookup result (optional)
+
+  link      Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([linkId, createdAt])
+}

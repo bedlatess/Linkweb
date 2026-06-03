@@ -1,0 +1,21 @@
+[Unit]
+Description=LinkWeb - Personal Link Aggregation Platform
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/linkweb
+ExecStart=/usr/bin/node /opt/linkweb/.next/standalone/server.js
+Restart=always
+RestartSec=5
+User=root
+Environment=NODE_ENV=production
+Environment=PORT=3010
+Environment=HOSTNAME=0.0.0.0
+EnvironmentFile=/opt/linkweb/.env
+StandardOutput=append:/var/log/linkweb.log
+StandardError=append:/var/log/linkweb.log
+
+[Install]
+WantedBy=multi-user.target
